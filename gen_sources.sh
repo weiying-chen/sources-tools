@@ -4,11 +4,11 @@ set -euo pipefail
 usage() {
   cat <<'EOH'
 Usage:
-  gen-sources [episodes_json] [output_dir]
+  gen-sources [episodes_file] [output_dir]
 
 Generate source DOCX files from the current folder using:
-  - episodes_json: argument or ./episodes.json
-  - subtitles:     ./subtitles by default, falling back to ./sources
+  - episodes_file: argument or ./episodes.json
+  - subtitles:     ./subtitles by default
   - output_dir:    second argument or ./output
 
 Environment overrides:
@@ -28,22 +28,17 @@ SCRIPT_PATH="${GENERATE_SOURCES_SCRIPT:-$HOME/python/word/generate_sources.py}"
 PYTHON_BIN="${GENERATE_SOURCES_PYTHON:-$HOME/python/word/.venv/bin/python}"
 TEMPLATE_PATH="${GENERATE_SOURCES_TEMPLATE:-$HOME/python/word/templates/sources_template.docx}"
 SUBTITLES_DIR="${GENERATE_SOURCES_SUBTITLES_DIR:-./subtitles}"
-
-episodes_json="${1:-./episodes.json}"
-
-OUTPUT_DIR="${2:-./output}"
+EPISODES_FILE_OVERRIDE="${1:-}"
+OUTPUT_DIR_OVERRIDE="${2:-}"
 
 if [[ ! -d "$SUBTITLES_DIR" ]]; then
-  if [[ "$SUBTITLES_DIR" == "./subtitles" && -d ./sources ]]; then
-    SUBTITLES_DIR="./sources"
-  else
-    echo "[error] subtitles directory not found: $SUBTITLES_DIR" >&2
-    exit 1
-  fi
+  echo "[error] subtitles directory not found: $SUBTITLES_DIR" >&2
+  exit 1
 fi
 
-if [[ ! -f "$episodes_json" ]]; then
-  echo "[error] episodes json not found: $episodes_json" >&2
+episodes_file="${EPISODES_FILE_OVERRIDE:-./episodes.json}"
+if [[ ! -f "$episodes_file" ]]; then
+  echo "[error] episodes file not found: $episodes_file" >&2
   exit 1
 fi
 
@@ -62,20 +57,31 @@ if [[ ! -f "$TEMPLATE_PATH" ]]; then
   exit 1
 fi
 
-mkdir -p "$OUTPUT_DIR"
+output_dir="${OUTPUT_DIR_OVERRIDE:-./output}"
+mkdir -p "$output_dir"
 
-"$PYTHON_BIN" "$SCRIPT_PATH" \
-  --episodes-json "$episodes_json" \
-  --template "$TEMPLATE_PATH" \
-  --sources-dir "$SUBTITLES_DIR" \
-  --output-dir "$OUTPUT_DIR"
+args=(--template "$TEMPLATE_PATH")
+
+if [[ -n "$EPISODES_FILE_OVERRIDE" ]]; then
+  args+=(--episodes-file "$EPISODES_FILE_OVERRIDE")
+fi
+
+if [[ "$SUBTITLES_DIR" != "./subtitles" ]]; then
+  args+=(--subtitles-dir "$SUBTITLES_DIR")
+fi
+
+if [[ -n "$OUTPUT_DIR_OVERRIDE" ]]; then
+  args+=(--output-dir "$OUTPUT_DIR_OVERRIDE")
+fi
+
+"$PYTHON_BIN" "$SCRIPT_PATH" "${args[@]}"
 
 created=0
 while IFS= read -r f; do
   echo "[created] $(basename "$f")"
   created=$((created + 1))
-done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.docx' | sort)
+done < <(find "$output_dir" -maxdepth 1 -type f -name '*.docx' | sort)
 
 if (( created == 0 )); then
-  echo "[warn] no .docx files found in: $OUTPUT_DIR"
+  echo "[warn] no .docx files found in: $output_dir"
 fi
