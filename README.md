@@ -51,3 +51,34 @@ gen-sources
 ```
 
 Only JSON entries with a matching subtitle file generate a DOCX. Results are written to `./output`.
+
+## Add generated sources to the master list
+
+Put generated DOCX files in `./queued` (or leave them in `./output` when
+`./queued` is empty), then run from the programme folder:
+
+```bash
+add-sources
+```
+
+The command finds the single master DOCX directly inside the current folder,
+adds only titles that are not already present, and updates the master in place.
+Use `add-sources --dry-run` to preview or `add-sources --copy` to write an
+`_updated.docx` copy instead.
+
+## Update English details
+
+Put completed translated DOCX or DOC files in `./done`, then run:
+
+```bash
+update-sources
+```
+
+The command matches rows by their Chinese titles, adds the English title and
+description, and updates the master in place. Use `update-sources --dry-run`
+to preview or `update-sources --copy` to write an `_updated.docx` copy.
+
+Both commands work with All About Health and Easy Fitness because the current
+programme folder selects the master and its `queued`, `output`, or `done`
+subfolder. Use `--master`/`--docx` only when the folder contains more than one
+possible master DOCX.
