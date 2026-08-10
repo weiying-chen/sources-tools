@@ -60,14 +60,18 @@ def row_needs_english(cell_xml: str) -> bool:
     return not bool(re.search(r"[A-Za-z]", " ".join(paragraphs[3:])))
 
 
-def extract_row_match(row_xml: str) -> RowMatch | None:
+def extract_row_match(row_xml: str, require_missing: bool = True) -> RowMatch | None:
     cells = cells_for_row(row_xml)
     if len(cells) < 2:
         return None
     label = extract_text(cells[0][2]).strip()
     target_start, target_end, target_cell = cells[1]
-    paragraphs = [text.strip() for text in extract_paragraphs(target_cell) if text.strip()]
-    if len(paragraphs) < 3 or not row_needs_english(target_cell):
+    paragraphs = [text.strip() for text in extract_paragraphs(target_cell)]
+    # Easy Fitness rows may intentionally have an empty third (timestamp)
+    # paragraph. Its position still exists and is the insertion anchor.
+    if len(paragraphs) < 2 or not paragraphs[0] or not paragraphs[1]:
+        return None
+    if require_missing and not row_needs_english(target_cell):
         return None
     chinese_title = normalize_title(paragraphs[0])
     if not chinese_title:
@@ -87,22 +91,29 @@ def has_bold_run(paragraph_xml: str) -> bool:
 
 
 def find_template_paragraphs(document_xml: str) -> tuple[str, str]:
+    candidates: list[tuple[str, str, str]] = []
     for _, _, row in iter_tag_spans(document_xml, "w:tr"):
         cells = cells_for_row(row)
         if len(cells) < 2:
             continue
         paragraphs_xml = re.findall(r"<w:p(?:\s[^>]*)?>.*?</w:p>", cells[1][2], flags=re.S)
         paragraphs_text = [extract_text(paragraph).strip() for paragraph in paragraphs_xml]
-        if len(paragraphs_xml) < 5:
-            continue
-        title_xml, description_xml = paragraphs_xml[3], paragraphs_xml[4]
-        if (
-            paragraphs_text[3]
-            and paragraphs_text[4]
-            and has_bold_run(title_xml)
-            and re.search(r"[A-Za-z]", paragraphs_text[3])
-        ):
+        for index in range(2, len(paragraphs_xml) - 1):
+            title_xml, description_xml = paragraphs_xml[index], paragraphs_xml[index + 1]
+            if (
+                paragraphs_text[index]
+                and paragraphs_text[index + 1]
+                and has_bold_run(title_xml)
+                and re.search(r"[A-Za-z]", paragraphs_text[index])
+                and re.search(r"[A-Za-z]", paragraphs_text[index + 1])
+            ):
+                candidates.append((paragraphs_text[index], title_xml, description_xml))
+    for title_text, title_xml, description_xml in candidates:
+        if re.match(r"^Easy Fitness\s*[-–]", title_text):
             return title_xml, description_xml
+    if candidates:
+        _, title_xml, description_xml = candidates[0]
+        return title_xml, description_xml
     raise RuntimeError("Could not find a filled English title/description template row.")
 
 
@@ -124,11 +135,31 @@ def replace_paragraph_text(paragraph_xml: str, new_text: str) -> str:
 
 
 def insert_after_timestamp(cell_xml: str, title_xml: str, description_xml: str) -> str:
+    """Insert or replace English details after the link/optional timestamp."""
     paragraphs = list(re.finditer(r"<w:p(?:\s[^>]*)?>.*?</w:p>", cell_xml, flags=re.S))
-    if len(paragraphs) < 3:
-        raise RuntimeError("Target cell lacks title/link/timestamp paragraphs.")
-    insert_at = paragraphs[2].end()
-    return cell_xml[:insert_at] + title_xml + description_xml + cell_xml[insert_at:]
+    if len(paragraphs) < 2:
+        raise RuntimeError("Target cell lacks title/link paragraphs.")
+
+    texts = [extract_text(match.group(0)).strip() for match in paragraphs]
+    insert_at = paragraphs[1].end()
+    remove_end = insert_at
+    detail_index = 2
+    if len(paragraphs) > 2 and re.match(r"^\d{1,2}:\d{2}", texts[2]):
+        insert_at = paragraphs[2].end()
+        remove_end = insert_at
+        detail_index = 3
+    elif len(paragraphs) > 2 and not texts[2]:
+        # Drop an unused timestamp placeholder instead of leaving a blank line.
+        remove_end = paragraphs[2].end()
+        detail_index = 3
+
+    # Refresh an existing English title and description when present.
+    if detail_index < len(paragraphs) and re.search(r"[A-Za-z]", texts[detail_index]):
+        remove_end = paragraphs[detail_index].end()
+        if detail_index + 1 < len(paragraphs) and re.search(r"[A-Za-z]", texts[detail_index + 1]):
+            remove_end = paragraphs[detail_index + 1].end()
+
+    return cell_xml[:insert_at] + title_xml + description_xml + cell_xml[remove_end:]
 
 
 def write_docx_copy(source: Path, destination: Path, document_xml: str) -> None:

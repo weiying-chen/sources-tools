@@ -22,6 +22,7 @@ from pm_docx_utils import (
     cells_for_row,
     extract_paragraphs,
     extract_row_match,
+    extract_text,
     find_template_paragraphs,
     insert_after_timestamp,
     iter_tag_spans,
@@ -205,6 +206,22 @@ def build_output_path(input_path: Path, in_place: bool) -> Path:
     return input_path.with_name(f"{input_path.stem}_updated{input_path.suffix}")
 
 
+def choose_entry(candidates: list[DoneEntry]) -> tuple[DoneEntry | None, str]:
+    """Choose one source safely, preferring a unique final deliverable."""
+    unique = {entry.source: entry for entry in candidates}
+    entries = list(unique.values())
+    finals = [entry for entry in entries if entry.source.stem.lower().endswith("_final")]
+    if len(finals) == 1:
+        return finals[0], ""
+    if len(entries) == 1:
+        return entries[0], ""
+    variants = {(entry.english_title, entry.description) for entry in entries}
+    if len(variants) == 1:
+        return entries[0], ""
+    names = ", ".join(entry.source.name for entry in (finals or entries))
+    return None, f"ambiguous matching sources: {names}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -227,6 +244,11 @@ def main() -> int:
     parser.add_argument("--in-place", dest="in_place", action="store_true", help=argparse.SUPPRESS)
     parser.set_defaults(in_place=True)
     parser.add_argument("--limit", type=int, default=0, help="maximum number of rows to update")
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="replace English details in matching rows even when already filled",
+    )
     args = parser.parse_args()
 
     project_dir = Path.cwd()
@@ -244,29 +266,32 @@ def main() -> int:
     ElementTree.fromstring(document_xml.encode("utf-8"))
 
     entries = iter_done_entries(source_dir)
-    entry_by_title: dict[str, DoneEntry] = {}
+    entries_by_title: dict[str, list[DoneEntry]] = {}
     for entry in entries:
         for key in matching_title_keys(entry.chinese_title):
-            entry_by_title[key] = entry
+            entries_by_title.setdefault(key, []).append(entry)
     title_template, desc_template = find_template_paragraphs(document_xml)
+    template_title = extract_text(title_template).strip()
+    title_prefix = "Easy Fitness - " if re.match(r"^Easy Fitness\s*[-–]", template_title) else ""
 
     replacements: list[tuple[str, str]] = []
     updates = 0
     for _, _, row_xml in iter_tag_spans(document_xml, "w:tr"):
-        row = extract_row_match(row_xml)
+        row = extract_row_match(row_xml, require_missing=not args.refresh)
         if not row:
             continue
-        entry = next(
-            (
-                entry_by_title[key]
-                for key in matching_title_keys(row.chinese_title)
-                if key in entry_by_title
-            ),
-            None,
-        )
+        entry = None
+        ambiguity = ""
+        for key in matching_title_keys(row.chinese_title):
+            candidates = entries_by_title.get(key, [])
+            if candidates:
+                entry, ambiguity = choose_entry(candidates)
+                break
+        if ambiguity:
+            print(f"skip row {row.row_label}: {ambiguity}")
         if not entry:
             continue
-        title_xml = replace_paragraph_text(title_template, entry.english_title)
+        title_xml = replace_paragraph_text(title_template, title_prefix + entry.english_title)
         description_xml = replace_paragraph_text(desc_template, entry.description)
         new_cell = insert_after_timestamp(row.cell_xml, title_xml, description_xml)
         new_row = row_xml[: row.cell_start_in_row] + new_cell + row_xml[row.cell_end_in_row :]
