@@ -1,0 +1,35 @@
+# Editing policy for translators in the active PM backlog.
+# Add every new translator explicitly; unknown names stop the report.
+
+[report]
+translation_ready_target = 3
+
+[[people]]
+name = "Alex"
+aliases = ["Alex", "Al"]
+edit_required = true
+
+[[people]]
+name = "Shawn"
+aliases = ["Shawn", "Sh"]
+edit_required = true
+
+[[people]]
+name = "Elijah"
+aliases = ["Elijah", "El"]
+edit_required = false
+
+[[people]]
+name = "Em"
+aliases = ["Em", "Emily"]
+edit_required = false
+
+[[people]]
+name = "WH"
+aliases = ["WH"]
+edit_required = false
+
+[[people]]
+name = "Contractor"
+aliases = ["承攬"]
+edit_required = false

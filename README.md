@@ -82,3 +82,20 @@ Both commands work with All About Health and Easy Fitness because the current
 programme folder selects the master and its `queued`, `output`, or `done`
 subfolder. Use `--master`/`--docx` only when the folder contains more than one
 possible master DOCX.
+
+## Report current workload
+
+Run from the PM root so both programme masters are included:
+
+```bash
+cd ~/text/pm
+report-sources
+```
+
+The command prints counts for unassigned translations and translations waiting
+for editing, warns when a programme has fewer than the configured number of
+unassigned tasks ready at the top,
+then copies the same report with `wl-copy`. Editing requirements and name
+aliases, along with the ready-task target, are configured in
+`status_people.toml`. Use
+`report-sources --no-copy` to print without changing the clipboard.
