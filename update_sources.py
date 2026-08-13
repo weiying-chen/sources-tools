@@ -103,6 +103,9 @@ def normalize_source_title(text: str) -> str:
     """Normalize an episode title in the same way as a PM-sheet row title."""
     normalized = normalize_title(text)
     normalized = re.sub(r"【?大愛真健康】?", "", normalized)
+    # Older completed files include the source-program label, while the PM
+    # master rows begin directly with the host/guest portion of the title.
+    normalized = re.sub(r"^早點回家[|｜∣]?", "", normalized)
     return normalized
 
 

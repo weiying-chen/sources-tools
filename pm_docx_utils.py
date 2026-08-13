@@ -55,9 +55,19 @@ def cells_for_row(row_xml: str) -> list[tuple[int, int, str]]:
 
 def row_needs_english(cell_xml: str) -> bool:
     paragraphs = [text.strip() for text in extract_paragraphs(cell_xml) if text.strip()]
-    if len(paragraphs) <= 3:
+    if len(paragraphs) < 2:
         return True
-    return not bool(re.search(r"[A-Za-z]", " ".join(paragraphs[3:])))
+
+    # Newer rows put a YouTube URL after the Chinese title. Older rows have no
+    # URL and put their English title and description directly after it.
+    english_paragraphs = [
+        text
+        for text in paragraphs[1:]
+        if not text.startswith(("https://", "http://", "("))
+        and not re.match(r"^\d{1,2}:\d{2}", text)
+        and re.search(r"[A-Za-z]", text)
+    ]
+    return len(english_paragraphs) < 2
 
 
 def extract_row_match(row_xml: str, require_missing: bool = True) -> RowMatch | None:
