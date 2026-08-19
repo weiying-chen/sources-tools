@@ -85,17 +85,17 @@ possible master DOCX.
 
 ## Report current workload
 
-Run from the PM root so both programme masters are included:
+Run from the PM root so both programme folders are included:
 
 ```bash
 cd ~/text/pm
 report-sources
 ```
 
-The command prints counts for unassigned translations and translations waiting
-for editing, warns when a programme has fewer than the configured number of
-unassigned tasks ready at the top,
-then copies the same report with `wl-copy`. Editing requirements and name
-aliases, along with the ready-task target, are configured in
-`status_people.toml`. Use
+The command counts document files directly inside each programme's `queued/`
+folder as waiting for translation and files directly inside `translated/` as
+waiting for editing. Subfolders such as `translated/ok/` are not counted. It
+warns when a programme has fewer than the configured number of translation
+files ready, then copies the same report with `wl-copy`. The ready-task target
+is configured in `report_sources.toml`. Use
 `report-sources --no-copy` to print without changing the clipboard.

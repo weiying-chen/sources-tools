@@ -1,112 +1,47 @@
 #!/home/weiying/python/word/.venv/bin/python
-"""Report pending PM translation/editing counts and copy them to the clipboard."""
+"""Report actionable PM work from the programme workflow folders."""
 
 from __future__ import annotations
 
 import argparse
-import re
 import subprocess
 import tomllib
-from dataclasses import dataclass
 from pathlib import Path
-
-from docx import Document
-
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = Path.cwd()
-CONFIG_PATH = SCRIPT_DIR / "status_people.toml"
+CONFIG_PATH = SCRIPT_DIR / "report_sources.toml"
 PROGRAMMES = (
-    ("大愛醫生館", ROOT / "all-about-health/4大愛醫生館(菊芬雲端).docx"),
-    ("大愛真健康", ROOT / "easy-fitness/4大愛真健康.docx"),
+    ("大愛醫生館", ROOT / "all-about-health"),
+    ("大愛真健康", ROOT / "easy-fitness"),
 )
-TIMESTAMP_RE = re.compile(r"^\d{1,2}:\d{2}")
+DOCUMENT_SUFFIXES = {".doc", ".docx"}
 
 
-@dataclass(frozen=True)
-class PersonPolicy:
-    name: str
-    edit_required: bool
-
-
-def normalize_name(value: str) -> str:
-    return re.sub(r"\s+", "", value).casefold()
-
-
-def load_config(path: Path) -> tuple[dict[str, PersonPolicy], int]:
+def load_config(path: Path) -> int:
     with path.open("rb") as config_file:
         data = tomllib.load(config_file)
-    policies: dict[str, PersonPolicy] = {}
-    for item in data.get("people", []):
-        policy = PersonPolicy(str(item["name"]), bool(item["edit_required"]))
-        for alias in item.get("aliases", [policy.name]):
-            key = normalize_name(str(alias))
-            if key in policies:
-                raise SystemExit(f"Duplicate person alias in {path}: {alias}")
-            policies[key] = policy
     ready_target = int(data.get("report", {}).get("translation_ready_target", 3))
     if ready_target < 1:
         raise SystemExit("translation_ready_target must be at least 1")
-    return policies, ready_target
+    return ready_target
 
 
-def has_english_details(cell) -> bool:
-    paragraphs = [paragraph.text.strip() for paragraph in cell.paragraphs if paragraph.text.strip()]
-    url_index = next((index for index, text in enumerate(paragraphs) if "youtu" in text.lower()), None)
-    if url_index is None:
-        return False
-    for text in paragraphs[url_index + 1 :]:
-        if TIMESTAMP_RE.match(text):
-            continue
-        if re.search(r"[A-Za-z]{3}", text):
-            return True
-    return False
+def count_documents(folder: Path) -> int:
+    if not folder.is_dir():
+        raise SystemExit(f"Missing workflow folder: {folder}")
+    return sum(
+        1
+        for path in folder.iterdir()
+        if path.is_file()
+        and path.suffix.lower() in DOCUMENT_SUFFIXES
+        and not path.name.startswith("~$")
+        and not path.name.endswith(":Zone.Identifier")
+    )
 
 
-def active_rows(master: Path):
-    document = Document(master)
-    if not document.tables:
-        raise SystemExit(f"Master DOCX has no table: {master}")
-    table = document.tables[0]
-    if len(table.columns) < 4:
-        raise SystemExit(f"Master table has too few columns: {master}")
-    for row in table.rows[1:]:
-        if len(row.cells) < 4 or not row.cells[1].text.strip():
-            continue
-        # The first production status marks the end of the current backlog.
-        if any(cell.text.strip() for cell in row.cells[3:]):
-            break
-        yield row
-
-
-def count_programme(master: Path, policies: dict[str, PersonPolicy]) -> tuple[int, int]:
-    if not master.is_file():
-        raise SystemExit(f"Missing master DOCX: {master}")
-    translation_count = 0
-    editing_count = 0
-    for row in active_rows(master):
-        assignment = row.cells[2].text.strip()
-        if not assignment:
-            if not has_english_details(row.cells[1]):
-                translation_count += 1
-            continue
-
-        roles = [part.strip() for part in assignment.split("/", 1)]
-        translator = roles[0]
-        editor = roles[1] if len(roles) == 2 else ""
-        if editor:
-            continue
-        key = normalize_name(translator)
-        policy = policies.get(key)
-        if policy is None:
-            label = row.cells[0].text.strip() or "?"
-            raise SystemExit(
-                f"Unknown translator {translator!r} in {master.name}, row {label}. "
-                f"Add them to {CONFIG_PATH.name}."
-            )
-        if policy.edit_required:
-            editing_count += 1
-    return translation_count, editing_count
+def count_programme(project: Path) -> tuple[int, int]:
+    return count_documents(project / "queued"), count_documents(project / "translated")
 
 
 def format_section(title: str, counts: list[tuple[str, int]]) -> str:
@@ -120,11 +55,11 @@ def format_section(title: str, counts: list[tuple[str, int]]) -> str:
 
 
 def build_report() -> str:
-    policies, ready_target = load_config(CONFIG_PATH)
+    ready_target = load_config(CONFIG_PATH)
     translations: list[tuple[str, int]] = []
     edits: list[tuple[str, int]] = []
-    for programme, master in PROGRAMMES:
-        translation_count, editing_count = count_programme(master, policies)
+    for programme, project in PROGRAMMES:
+        translation_count, editing_count = count_programme(project)
         translations.append((programme, translation_count))
         edits.append((programme, editing_count))
     sections = [
