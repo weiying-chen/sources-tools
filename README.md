@@ -99,3 +99,18 @@ warns when a programme has fewer than the configured number of translation
 files ready, then copies the same report with `wl-copy`. The ready-task target
 is configured in `report_sources.toml`. Use
 `report-sources --no-copy` to print without changing the clipboard.
+
+## Show the next unfinished sources
+
+Run from either programme folder:
+
+```bash
+next-sources
+```
+
+The command uses the top episode in the programme's master DOCX as the durable
+continuation point, finds it in `episodes.json`, and prints the next three newer
+episodes from oldest to newest. Episodes already represented by documents
+directly inside `queued/`, `translated/`, or `done/` are skipped. Isolated gaps
+older than the master boundary are intentionally ignored. Use
+`next-sources --limit N` to show a different number.
