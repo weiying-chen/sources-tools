@@ -90,6 +90,7 @@ def main() -> int:
             raise SystemExit("wl-copy is not installed; report was printed but not copied.")
         except subprocess.CalledProcessError as error:
             raise SystemExit(f"wl-copy failed with status {error.returncode}; report was printed but not copied.")
+        print("Success: Report copied to clipboard")
     return 0
 
 

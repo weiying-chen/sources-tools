@@ -1,8 +1,11 @@
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
-from report_sources import count_documents, count_programme
+from report_sources import count_documents, count_programme, main
 
 
 class FolderReportTests(unittest.TestCase):
@@ -32,6 +35,21 @@ class FolderReportTests(unittest.TestCase):
             (translated / "c.docx").touch()
 
             self.assertEqual(count_programme(project), (2, 1))
+
+    @mock.patch("report_sources.subprocess.run")
+    @mock.patch("report_sources.build_report", return_value="report text")
+    def test_main_confirms_successful_clipboard_copy(self, _build_report, run_mock):
+        output = io.StringIO()
+        with mock.patch("sys.argv", ["report-sources"]), redirect_stdout(output):
+            self.assertEqual(main(), 0)
+
+        run_mock.assert_called_once_with(
+            ["wl-copy"], input="report text", text=True, check=True
+        )
+        self.assertEqual(
+            output.getvalue(),
+            "report text\nSuccess: Report copied to clipboard\n",
+        )
 
 
 if __name__ == "__main__":
