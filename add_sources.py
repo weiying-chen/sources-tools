@@ -1,4 +1,4 @@
-#!/home/weiying/python/word/.venv/bin/python
+#!/home/wei-ying-chen/python/word/.venv/bin/python
 """Add queued source DOCX entries to the current programme's master table."""
 
 from __future__ import annotations
