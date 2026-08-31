@@ -1,9 +1,15 @@
 import unittest
 
-from next_sources import Boundary, Episode, WorkflowIndex, next_episodes
+from next_sources import Boundary, Episode, WorkflowIndex, display_date, next_episodes
 
 
 class NextSourcesTests(unittest.TestCase):
+    def test_formats_iso_date_for_archive_search(self):
+        self.assertEqual(display_date("2026-04-27"), "2026/04/27")
+
+    def test_leaves_non_iso_date_unchanged(self):
+        self.assertEqual(display_date("unknown"), "unknown")
+
     def test_returns_next_three_after_master_boundary(self):
         episodes = [
             Episode("2026-07-03", "Newest title", "https://youtu.be/newest1", "newest1", 0),

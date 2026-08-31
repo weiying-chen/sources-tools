@@ -179,6 +179,13 @@ def load_episodes(path: Path) -> list[Episode]:
     return episodes
 
 
+def display_date(date: str) -> str:
+    """Format ISO episode dates for copying into the archive search form."""
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        return date.replace("-", "/")
+    return date
+
+
 def is_finished(episode: Episode, workflow: WorkflowIndex) -> bool:
     if episode.video_id and episode.video_id in workflow.video_ids:
         return True
@@ -231,7 +238,7 @@ def main() -> int:
         print("No unfinished episodes found.")
         return 0
     for index, episode in enumerate(selected, 1):
-        print(f"{index}. {episode.date}  {episode.title}")
+        print(f"{index}. {display_date(episode.date)}  {episode.title}")
         if episode.url:
             print(episode.url)
     return 0
