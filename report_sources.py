@@ -1,4 +1,4 @@
-#!/home/wei-ying-chen/python/word/.venv/bin/python
+#!/home/weiying/python/word/.venv/bin/python
 """Report actionable PM work from the programme workflow folders."""
 
 from __future__ import annotations
