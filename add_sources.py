@@ -11,6 +11,7 @@ from pathlib import Path
 
 from docx import Document
 from docx.oxml.ns import qn
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.table import _Cell
 from docx.text.run import Run
 
@@ -71,6 +72,15 @@ def set_paragraph_text(paragraph, text: str) -> None:
         run = Run(run_element, paragraph)
         run.font.name = "Calibri"
         run._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), "新細明體")
+
+
+def set_hyperlink_target(paragraph, url: str) -> None:
+    """Point a cloned hyperlink paragraph at its newly displayed URL."""
+    hyperlinks = paragraph._p.findall(qn("w:hyperlink"))
+    if len(hyperlinks) != 1:
+        raise RuntimeError("URL paragraph must contain exactly one hyperlink")
+    relationship_id = paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True)
+    hyperlinks[0].set(qn("r:id"), relationship_id)
 
 
 def clear_cell(cell) -> None:
@@ -205,6 +215,7 @@ def main() -> int:
             target.add_paragraph("")
         set_paragraph_text(target.paragraphs[0], entry.title)
         set_paragraph_text(target.paragraphs[1], entry.url)
+        set_hyperlink_target(target.paragraphs[1], entry.url)
         set_paragraph_text(target.paragraphs[2], entry.timestamp)
         for paragraph in target.paragraphs[3:]:
             set_paragraph_text(paragraph, "")
