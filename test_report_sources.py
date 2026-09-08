@@ -5,10 +5,31 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from report_sources import count_documents, count_programme, main
+from report_sources import (
+    count_documents,
+    count_programme,
+    format_translation_section,
+    main,
+)
 
 
 class FolderReportTests(unittest.TestCase):
+    def test_translation_section_with_one_empty_programme(self):
+        self.assertEqual(
+            format_translation_section(
+                [("大愛醫生館", 0), ("大愛真健康", 3)], 3
+            ),
+            "待翻譯的節目：\n(我會再選3集大愛醫生館)\n3集大愛真健康",
+        )
+
+    def test_translation_section_with_both_empty(self):
+        self.assertEqual(
+            format_translation_section(
+                [("大愛醫生館", 0), ("大愛真健康", 0)], 3
+            ),
+            "待翻譯的節目：\n無\n(我會再選3集大愛醫生館)\n(我會再選3集大愛真健康)",
+        )
+
     def test_counts_only_documents_directly_in_folder(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder = Path(temporary)

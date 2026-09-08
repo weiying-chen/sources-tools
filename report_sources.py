@@ -54,6 +54,21 @@ def format_section(title: str, counts: list[tuple[str, int]]) -> str:
     return "\n".join(lines)
 
 
+def format_translation_section(
+    counts: list[tuple[str, int]], ready_target: int
+) -> str:
+    lines = ["待翻譯的節目："]
+    nonzero = [(programme, count) for programme, count in counts if count]
+    if not nonzero:
+        lines.append("無")
+    for programme, count in counts:
+        if count:
+            lines.append(f"{count}集{programme}")
+        if count < ready_target:
+            lines.append(f"(我會再選{ready_target - count}集{programme})")
+    return "\n".join(lines)
+
+
 def build_report() -> str:
     ready_target = load_config(CONFIG_PATH)
     translations: list[tuple[str, int]] = []
@@ -63,17 +78,9 @@ def build_report() -> str:
         translations.append((programme, translation_count))
         edits.append((programme, editing_count))
     sections = [
-        format_section("待翻譯的節目", translations),
+        format_translation_section(translations, ready_target),
         format_section("待edit的節目", edits),
     ]
-    low_queues = [(programme, count) for programme, count in translations if count < ready_target]
-    if low_queues:
-        warning_lines = ["提醒："]
-        warning_lines.extend(
-            f"{programme}待翻譯節目不足{ready_target}集，目前{count}集，請再新增{ready_target - count}集。"
-            for programme, count in low_queues
-        )
-        sections.append("\n".join(warning_lines))
     return "\n\n".join(sections)
 
 
