@@ -9,7 +9,8 @@ Usage:
 Generate source DOCX files from the current folder using:
   - episodes_file: argument or ./episodes.json
   - subtitles:     ./subtitles by default
-  - output_dir:    second argument or ./output
+  - output_dir:    second argument or ./queued
+  - completed subtitles are moved to ./subtitles/done
 
 Environment overrides:
   GENERATE_SOURCES_SCRIPT   default: $HOME/python/word/generate_sources.py
@@ -57,10 +58,14 @@ if [[ ! -f "$TEMPLATE_PATH" ]]; then
   exit 1
 fi
 
-output_dir="${OUTPUT_DIR_OVERRIDE:-./output}"
+output_dir="${OUTPUT_DIR_OVERRIDE:-./queued}"
 mkdir -p "$output_dir"
 
-args=(--template "$TEMPLATE_PATH")
+args=(
+  --template "$TEMPLATE_PATH"
+  --output-dir "$output_dir"
+  --archive-subtitles-dir "$SUBTITLES_DIR/done"
+)
 
 if [[ -n "$EPISODES_FILE_OVERRIDE" ]]; then
   args+=(--episodes-file "$EPISODES_FILE_OVERRIDE")
@@ -68,10 +73,6 @@ fi
 
 if [[ "$SUBTITLES_DIR" != "./subtitles" ]]; then
   args+=(--subtitles-dir "$SUBTITLES_DIR")
-fi
-
-if [[ -n "$OUTPUT_DIR_OVERRIDE" ]]; then
-  args+=(--output-dir "$OUTPUT_DIR_OVERRIDE")
 fi
 
 "$PYTHON_BIN" "$SCRIPT_PATH" "${args[@]}"
