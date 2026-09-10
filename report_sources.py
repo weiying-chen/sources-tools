@@ -69,19 +69,6 @@ def translator_from_filename(path: Path, translators: dict[str, str]) -> str | N
     return None
 
 
-def unmapped_translator_from_filename(
-    path: Path, translators: dict[str, str]
-) -> str | None:
-    """Return an unmapped name appended after an episode date, if present."""
-    match = re.search(r"20\d{6}[\W_]+([^\W_]+)$", path.stem)
-    if not match:
-        return None
-    token = match.group(1)
-    if token.casefold() in translators:
-        return None
-    return token
-
-
 def editing_counts(
     folder: Path, translators: dict[str, str]
 ) -> list[tuple[str | None, int]]:
@@ -89,13 +76,14 @@ def editing_counts(
     return sorted(counts.items(), key=lambda item: (item[0] is None, item[0] or ""))
 
 
-def unmapped_translators(folder: Path, translators: dict[str, str]) -> list[str]:
+def files_without_translator(folder: Path, translators: dict[str, str]) -> list[str]:
+    """List every translated document that has no configured translator token."""
     return sorted(
-        {
-            token
+        [
+            path.name
             for path in document_paths(folder)
-            if (token := unmapped_translator_from_filename(path, translators))
-        },
+            if translator_from_filename(path, translators) is None
+        ],
         key=str.casefold,
     )
 
@@ -146,20 +134,23 @@ def build_report() -> str:
     ready_target, translators = load_config(CONFIG_PATH)
     translations: list[tuple[str, int]] = []
     edits: list[tuple[str, list[tuple[str | None, int]]]] = []
-    unmapped: set[str] = set()
+    missing_translator: list[str] = []
     for programme, project in PROGRAMMES:
         translation_count, _ = count_programme(project)
         translations.append((programme, translation_count))
         edits.append((programme, editing_counts(project / "translated", translators)))
-        unmapped.update(unmapped_translators(project / "translated", translators))
+        missing_translator.extend(
+            files_without_translator(project / "translated", translators)
+        )
     sections = [
         format_translation_section(translations, ready_target),
         format_editing_section(edits),
     ]
-    if unmapped:
-        names = "、".join(sorted(unmapped, key=str.casefold))
+    if missing_translator:
+        filenames = "、".join(sorted(missing_translator, key=str.casefold))
         sections.append(
-            f"警告：未設定譯者 {names}；請加入 report_sources.toml 的 "
+            f"警告：以下待edit檔案沒有已設定的譯者：{filenames}。"
+            "請在檔名加入譯者代碼，並在需要時更新 report_sources.toml 的 "
             "[report.translators]。"
         )
     return "\n\n".join(sections)

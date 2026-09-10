@@ -9,10 +9,10 @@ from report_sources import (
     count_documents,
     count_programme,
     editing_counts,
+    files_without_translator,
     format_editing_section,
     format_translation_section,
     main,
-    unmapped_translators,
 )
 
 
@@ -77,7 +77,7 @@ class FolderReportTests(unittest.TestCase):
             "1集大愛醫生館",
         )
 
-    def test_warns_about_unmapped_translator_after_episode_date(self):
+    def test_warns_about_every_file_without_a_configured_translator(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder = Path(temporary)
             (folder / "episode_20260623_Shawn.docx").touch()
@@ -85,8 +85,8 @@ class FolderReportTests(unittest.TestCase):
             (folder / "episode_20260625.docx").touch()
 
             self.assertEqual(
-                unmapped_translators(folder, {"shawn": "張牧軒 Shawn"}),
-                ["Amy"],
+                files_without_translator(folder, {"shawn": "張牧軒 Shawn"}),
+                ["episode_20260624_Amy.docx", "episode_20260625.docx"],
             )
 
     @mock.patch("report_sources.subprocess.run")
