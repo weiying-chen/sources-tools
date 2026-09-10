@@ -1,2 +1,5 @@
 [report]
 translation_ready_target = 3
+
+[report.translators]
+Shawn = "張牧軒 Shawn"

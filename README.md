@@ -100,6 +100,12 @@ files ready, then copies the same report with `wl-copy`. The ready-task target
 is configured in `report_sources.toml`. Use
 `report-sources --no-copy` to print without changing the clipboard.
 
+For files waiting for editing, the report also shows the translator when a
+configured translator key appears as a separate filename token (for example,
+`_Shawn.docx`). Translator keys and their report display names are configured
+under `[report.translators]` in `report_sources.toml`. The master DOCX is not
+used for this because it does not currently record the translator.
+
 ## Show the next unfinished sources
 
 Run from either programme folder:

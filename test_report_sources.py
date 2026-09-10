@@ -8,8 +8,11 @@ from unittest import mock
 from report_sources import (
     count_documents,
     count_programme,
+    editing_counts,
+    format_editing_section,
     format_translation_section,
     main,
+    unmapped_translators,
 )
 
 
@@ -56,6 +59,35 @@ class FolderReportTests(unittest.TestCase):
             (translated / "c.docx").touch()
 
             self.assertEqual(count_programme(project), (2, 1))
+
+    def test_editing_section_groups_files_by_translator_filename_token(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            (folder / "episode_20260623_Shawn.docx").touch()
+            (folder / "episode_20260624_shawn.docx").touch()
+            (folder / "episode_20260625_Amy.docx").touch()
+
+            groups = editing_counts(folder, {"shawn": "張牧軒 Shawn"})
+
+        self.assertEqual(groups, [("張牧軒 Shawn", 2), (None, 1)])
+        self.assertEqual(
+            format_editing_section([("大愛醫生館", groups)]),
+            "待edit的節目：\n"
+            "2集大愛醫生館 (張牧軒 Shawn翻譯)\n"
+            "1集大愛醫生館",
+        )
+
+    def test_warns_about_unmapped_translator_after_episode_date(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            (folder / "episode_20260623_Shawn.docx").touch()
+            (folder / "episode_20260624_Amy.docx").touch()
+            (folder / "episode_20260625.docx").touch()
+
+            self.assertEqual(
+                unmapped_translators(folder, {"shawn": "張牧軒 Shawn"}),
+                ["Amy"],
+            )
 
     @mock.patch("report_sources.subprocess.run")
     @mock.patch("report_sources.build_report", return_value="report text")
