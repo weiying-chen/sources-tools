@@ -141,7 +141,31 @@ def replace_paragraph_text(paragraph_xml: str, new_text: str) -> str:
         seen_first = True
         return f"{match.group(1)}{escaped}{match.group(3)}"
 
-    return pattern.sub(replace, paragraph_xml)
+    updated = pattern.sub(replace, paragraph_xml)
+
+    def normalize_run(match: re.Match[str]) -> str:
+        run = match.group(0)
+        rpr_match = re.search(r"<w:rPr(?:\s[^>]*)?>.*?</w:rPr>", run, flags=re.S)
+        font_xml = (
+            '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" '
+            'w:cs="Calibri"/>'
+        )
+        color_xml = '<w:color w:val="000000"/>'
+        if rpr_match:
+            rpr = rpr_match.group(0)
+            if re.search(r"<w:rFonts(?:\s[^>]*)?\s*/>", rpr):
+                rpr = re.sub(r"<w:rFonts(?:\s[^>]*)?\s*/>", font_xml, rpr, count=1)
+            else:
+                rpr = rpr.replace(">", f">{font_xml}", 1)
+            if re.search(r"<w:color(?:\s[^>]*)?\s*/>", rpr):
+                rpr = re.sub(r"<w:color(?:\s[^>]*)?\s*/>", color_xml, rpr, count=1)
+            else:
+                rpr = rpr.replace(">", f">{color_xml}", 1)
+            return run[: rpr_match.start()] + rpr + run[rpr_match.end() :]
+        start_end = run.find(">") + 1
+        return run[:start_end] + f"<w:rPr>{font_xml}{color_xml}</w:rPr>" + run[start_end:]
+
+    return re.sub(r"<w:r(?:\s[^>]*)?>.*?</w:r>", normalize_run, updated, flags=re.S)
 
 
 def insert_after_timestamp(cell_xml: str, title_xml: str, description_xml: str) -> str:

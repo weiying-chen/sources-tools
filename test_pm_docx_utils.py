@@ -1,4 +1,4 @@
-from pm_docx_utils import row_needs_english
+from pm_docx_utils import replace_paragraph_text, row_needs_english
 
 
 def cell(*paragraphs: str) -> str:
@@ -62,3 +62,18 @@ def test_note_and_title_without_description_is_missing() -> None:
     assert row_needs_english(
         cell("中文標題", "(25/10/29 health)", "English title")
     )
+
+
+def test_replaced_english_text_is_black_calibri() -> None:
+    paragraph = (
+        '<w:p><w:r><w:rPr><w:b/><w:rFonts w:ascii="Times New Roman"/>'
+        '<w:color w:val="4472C4"/></w:rPr><w:t>Old title</w:t></w:r></w:p>'
+    )
+
+    updated = replace_paragraph_text(paragraph, "New title")
+
+    assert "New title" in updated
+    assert 'w:ascii="Calibri"' in updated
+    assert 'w:hAnsi="Calibri"' in updated
+    assert 'w:color w:val="000000"' in updated
+    assert "<w:b/>" in updated
