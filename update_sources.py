@@ -127,14 +127,17 @@ def extract_chinese_title(paragraphs: list[str]) -> str:
 
 
 def extract_english_title(paragraphs: list[str]) -> str:
+    def normalize_english_title(candidate: str) -> str:
+        return re.sub(r"^All About Health\s*[-–]\s*", "", candidate).strip()
+
     for i, text in enumerate(paragraphs):
         if is_label(text, ("建議標題", "YT標題", "標題")):
             candidate = first_nonempty_after(paragraphs, i)
-            if candidate and re.search(r"[A-Za-z]", candidate) and not candidate.startswith("All About Health"):
-                return candidate.strip()
+            if candidate and re.search(r"[A-Za-z]", candidate):
+                return normalize_english_title(candidate)
         match = re.match(r"^(?:建議標題|YT標題|標題)\s*[：:]\s*(.+)$", text)
         if match and re.search(r"[A-Za-z]", match.group(1)):
-            return match.group(1).strip()
+            return normalize_english_title(match.group(1))
     return ""
 
 

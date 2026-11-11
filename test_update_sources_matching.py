@@ -23,3 +23,14 @@ def test_extract_english_title_accepts_yt_title_label() -> None:
     ]
 
     assert extract_english_title(paragraphs) == "Regenerating Knee Cartilage"
+
+
+def test_extract_english_title_strips_all_about_health_prefix() -> None:
+    paragraphs = [
+        "建議標題：",
+        "All About Health - Severe Infection in a Patient with Diabetes",
+    ]
+
+    assert extract_english_title(paragraphs) == (
+        "Severe Infection in a Patient with Diabetes"
+    )
